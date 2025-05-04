@@ -1,16 +1,24 @@
 use crossterm::{
     cursor,
     execute,
-    terminal::{Clear, ClearType},
+    terminal,
+    style::Print
 };
+use fontdue::Font;
 use figlet_rs::FIGfont;
 use std::{
-    io::{stdout, Result},
+    fs::read,
+    io::{stdout, Write},
     thread,
     time::Duration,
 };
 
-fn main() -> Result<()> {
+fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let font_data = read("Roboto-Regular.ttf")?;
+    let font = Font::from_bytes(font_data, fontdue::FontSettings::default())
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    let (metrics, bitmap) = font.rasterize('A', 48.0);
+
     let standard_font = FIGfont::standard().unwrap();
     let mut stdout = stdout();
 
@@ -26,12 +34,28 @@ fn main() -> Result<()> {
         // Clear the screen and move cursor to top-left
         execute!(
             stdout,
-            Clear(ClearType::All),
+            terminal::Clear(terminal::ClearType::All),
             cursor::MoveTo(0, 0)
         )?;
 
-        println!("{}", figure);
+        // println!("{}", figure
 
+        let width = metrics.width;
+        for (i, pixel) in bitmap.iter().enumerate() {
+            if i % width == 0 && i != 0 {
+                writeln!(stdout)?;
+            }
+
+            let ch = match pixel {
+                0..=25 => ' ',
+                26..=100 => '░',
+                101..=200 => '▒',
+                _ => '▓',
+            };
+
+            write!(stdout, "{}", ch)?;
+
+        }
         thread::sleep(Duration::from_secs(1));
     }
 }
